@@ -1,0 +1,6 @@
+pump/
+models/*.pkl
+__pycache__/
+*.pyc
+.streamlit/
+*.zip

@@ -1,0 +1,18 @@
+{
+  "algorithm": "LocalOutlierFactor",
+  "n_neighbors": 20,
+  "contamination": 0.08,
+  "auc_validation": 0.891,
+  "f1_validation": 0.6896,
+  "recall_validation": 0.9013,
+  "precision_validation": 0.5584,
+  "threshold_warn": -0.036165821552276635,
+  "threshold_alert": 0.007457226514816284,
+  "score_min_normal": -0.31475311517715454,
+  "score_max_normal": 1.5431164503097534,
+  "n_train": 2999,
+  "n_val_normal": 750,
+  "n_val_abnormal": 456,
+  "sr_target": 8000,
+  "n_features": 80
+}

@@ -1,0 +1,28 @@
+# ============================================================================
+# MIMII Anomaly Detection MVP — Dependencies
+# Proyecto de Egreso · Ingeniería Mecatrónica · UNI Perú
+# ============================================================================
+
+# Core ML
+scikit-learn>=1.3.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Audio
+librosa>=0.10.0
+soundfile>=0.12.1
+
+# Data
+pandas>=2.0.0
+tqdm>=4.65.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# UI
+streamlit>=1.28.0
+
+# Cloud / Serialization
+# Para Azure Functions: azure-functions>=1.17.0
+# Para GCP Cloud Run: functions-framework>=3.3.0

@@ -1,0 +1,122 @@
+<svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117"/><stop offset="100%" style="stop-color:#161b22"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1f6feb"/><stop offset="100%" style="stop-color:#388bfd"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#238636"/><stop offset="100%" style="stop-color:#2ea043"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9e6a03"/><stop offset="100%" style="stop-color:#d29922"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6e40c9"/><stop offset="100%" style="stop-color:#8957e5"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff"/>
+    </marker>
+    <filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.4"/></filter>
+  </defs>
+  <rect width="900" height="520" fill="url(#bgGrad)" rx="12"/>
+  <rect width="900" height="520" fill="none" stroke="#30363d" stroke-width="1" rx="12"/>
+  <text x="450" y="38" text-anchor="middle" font-size="17" font-weight="700" fill="#58a6ff">Sistema de Deteccion de Anomalias Acusticas - Arquitectura End-to-End</text>
+  <text x="450" y="56" text-anchor="middle" font-size="11" fill="#8b949e">MIMII Dataset · Bombas Industriales · +6 dB SNR · UNI Mecatronica</text>
+  <line x1="60" y1="66" x2="840" y2="66" stroke="#30363d" stroke-width="1"/>
+  <!-- Row 1 -->
+  <rect x="60" y="85" width="155" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="60" y="85" width="155" height="8" rx="4" fill="url(#blueGrad)"/>
+  <text x="137" y="110" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff">MIMII Dataset</text>
+  <text x="137" y="126" text-anchor="middle" font-size="10" fill="#8b949e">4,205 archivos WAV</text>
+  <text x="137" y="140" text-anchor="middle" font-size="10" fill="#8b949e">16 kHz · 10 seg · +6dB SNR</text>
+  <text x="137" y="155" text-anchor="middle" font-size="10" fill="#8b949e">id_00 · id_02 · id_04 · id_06</text>
+  <line x1="215" y1="125" x2="258" y2="125" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="237" y="118" text-anchor="middle" font-size="9" fill="#58a6ff">WAV</text>
+  <rect x="260" y="85" width="155" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="260" y="85" width="155" height="8" rx="4" fill="url(#blueGrad)"/>
+  <text x="337" y="110" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff">Ingesta &amp; Inventario</text>
+  <text x="337" y="126" text-anchor="middle" font-size="10" fill="#8b949e">os.walk() recursivo</text>
+  <text x="337" y="140" text-anchor="middle" font-size="10" fill="#8b949e">DataFrame Pandas</text>
+  <text x="337" y="155" text-anchor="middle" font-size="10" fill="#8b949e">label · machine_id · path</text>
+  <line x1="415" y1="125" x2="458" y2="125" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="437" y="118" text-anchor="middle" font-size="9" fill="#58a6ff">df</text>
+  <rect x="460" y="85" width="165" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="460" y="85" width="165" height="8" rx="4" fill="url(#greenGrad)"/>
+  <text x="542" y="110" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950">Feature Extraction</text>
+  <text x="542" y="126" text-anchor="middle" font-size="10" fill="#8b949e">Temporal (15D) · PSD/Welch (25D)</text>
+  <text x="542" y="140" text-anchor="middle" font-size="10" fill="#8b949e">Onsets (10D) · MFCCs+Delta (30D)</text>
+  <text x="542" y="155" text-anchor="middle" font-size="10" fill="#3fb950">Vector 80D · SR=8kHz · Nyquist=4kHz</text>
+  <line x1="625" y1="125" x2="668" y2="125" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="647" y="118" text-anchor="middle" font-size="9" fill="#58a6ff">80D</text>
+  <rect x="670" y="85" width="165" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="670" y="85" width="165" height="8" rx="4" fill="url(#greenGrad)"/>
+  <text x="752" y="110" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950">Normalizacion</text>
+  <text x="752" y="126" text-anchor="middle" font-size="10" fill="#8b949e">RobustScaler</text>
+  <text x="752" y="140" text-anchor="middle" font-size="10" fill="#8b949e">Resistente a outliers</text>
+  <text x="752" y="155" text-anchor="middle" font-size="10" fill="#8b949e">IQR-based scaling</text>
+  <line x1="752" y1="165" x2="752" y2="198" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <!-- Row 2 -->
+  <rect x="620" y="200" width="270" height="90" rx="8" fill="#161b22" stroke="#8957e5" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="620" y="200" width="270" height="8" rx="4" fill="url(#purpleGrad)"/>
+  <text x="755" y="226" text-anchor="middle" font-size="12" font-weight="700" fill="#d2a8ff">Local Outlier Factor</text>
+  <text x="755" y="244" text-anchor="middle" font-size="10" fill="#8b949e">n_neighbors=20 · contamination=0.08</text>
+  <text x="755" y="259" text-anchor="middle" font-size="10" fill="#8b949e">novelty=True · One-Class Learning</text>
+  <text x="755" y="274" text-anchor="middle" font-size="10" fill="#d2a8ff">AUC=0.891 · Recall=0.901 · F1=0.690</text>
+  <rect x="460" y="200" width="148" height="90" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="534" y="224" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff">Train / Val Split</text>
+  <text x="534" y="242" text-anchor="middle" font-size="10" fill="#8b949e">80% normales: train</text>
+  <text x="534" y="257" text-anchor="middle" font-size="10" fill="#8b949e">20% normales: val</text>
+  <text x="534" y="272" text-anchor="middle" font-size="10" fill="#8b949e">456 anomalas: val</text>
+  <line x1="608" y1="245" x2="618" y2="245" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <rect x="60" y="200" width="388" height="90" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="254" y="222" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff">Benchmark Comparativo (5 algoritmos)</text>
+  <text x="160" y="242" text-anchor="middle" font-size="10" fill="#3fb950">1. LOF k=20   AUC=0.906</text>
+  <text x="360" y="242" text-anchor="middle" font-size="10" fill="#8b949e">2. LOF k=5    AUC=0.887</text>
+  <text x="160" y="258" text-anchor="middle" font-size="10" fill="#8b949e">3. One-Class SVM  AUC=0.748</text>
+  <text x="360" y="258" text-anchor="middle" font-size="10" fill="#8b949e">4. Isolation Forest  AUC=0.763</text>
+  <text x="254" y="278" text-anchor="middle" font-size="10" fill="#d29922">Umbral optimizado: Recall mayor o igual a 0.90</text>
+  <!-- Row 3 -->
+  <line x1="752" y1="292" x2="752" y2="325" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <rect x="460" y="327" width="155" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="460" y="327" width="155" height="8" rx="4" fill="url(#orangeGrad)"/>
+  <text x="537" y="350" text-anchor="middle" font-size="11" font-weight="700" fill="#d29922">Artefactos</text>
+  <text x="537" y="366" text-anchor="middle" font-size="10" fill="#8b949e">lof_model.pkl</text>
+  <text x="537" y="380" text-anchor="middle" font-size="10" fill="#8b949e">robust_scaler.pkl</text>
+  <text x="537" y="394" text-anchor="middle" font-size="10" fill="#8b949e">training_meta.json</text>
+  <line x1="615" y1="367" x2="668" y2="367" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <rect x="670" y="327" width="165" height="80" rx="8" fill="#161b22" stroke="#8957e5" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="670" y="327" width="165" height="8" rx="4" fill="url(#purpleGrad)"/>
+  <text x="752" y="350" text-anchor="middle" font-size="11" font-weight="700" fill="#d2a8ff">Inference Engine</text>
+  <text x="752" y="366" text-anchor="middle" font-size="10" fill="#8b949e">Health Index 0-100%</text>
+  <text x="752" y="380" text-anchor="middle" font-size="10" fill="#8b949e">NORMAL / WARN / ALERT</text>
+  <text x="752" y="394" text-anchor="middle" font-size="10" fill="#8b949e">Lazy loading · Cloud-ready</text>
+  <rect x="60" y="327" width="380" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="60" y="327" width="380" height="8" rx="4" fill="url(#blueGrad)"/>
+  <text x="250" y="350" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff">Streamlit Dashboard - SCADA Industrial</text>
+  <text x="250" y="366" text-anchor="middle" font-size="10" fill="#8b949e">4 estaciones · Gauge de salud · Sparkline 80D</text>
+  <text x="250" y="380" text-anchor="middle" font-size="10" fill="#8b949e">Inferencia en tiempo real · Auditoria Ground Truth</text>
+  <text x="250" y="394" text-anchor="middle" font-size="10" fill="#58a6ff">localhost:8501 · Streamlit Cloud (deploy)</text>
+  <line x1="440" y1="367" x2="458" y2="367" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="752" y1="407" x2="752" y2="435" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="250" y1="407" x2="250" y2="435" stroke="#58a6ff" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <!-- Row 4: Cloud -->
+  <rect x="60" y="437" width="248" height="62" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <rect x="60" y="437" width="248" height="8" rx="4" fill="url(#blueGrad)"/>
+  <text x="184" y="460" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff">Streamlit Community Cloud</text>
+  <text x="184" y="476" text-anchor="middle" font-size="10" fill="#8b949e">Deploy desde GitHub · URL publica</text>
+  <text x="184" y="490" text-anchor="middle" font-size="10" fill="#58a6ff">mimii-mvp.streamlit.app</text>
+  <rect x="328" y="437" width="248" height="62" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <rect x="328" y="437" width="248" height="8" rx="4" fill="url(#blueGrad)"/>
+  <text x="452" y="460" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff">Azure Functions / GCP Cloud Run</text>
+  <text x="452" y="476" text-anchor="middle" font-size="10" fill="#8b949e">REST API · Microservicio desacoplado</text>
+  <text x="452" y="490" text-anchor="middle" font-size="10" fill="#8b949e">POST /predict - JSON response</text>
+  <rect x="596" y="437" width="244" height="62" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <rect x="596" y="437" width="244" height="8" rx="4" fill="url(#blueGrad)"/>
+  <text x="718" y="460" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff">GitHub Repository</text>
+  <text x="718" y="476" text-anchor="middle" font-size="10" fill="#8b949e">Codigo · README · CI/CD ready</text>
+  <text x="718" y="490" text-anchor="middle" font-size="10" fill="#58a6ff">github.com/usuario/mimii-mvp</text>
+  <line x1="60" y1="508" x2="840" y2="508" stroke="#30363d" stroke-width="1"/>
+  <text x="450" y="518" text-anchor="middle" font-size="10" fill="#8b949e">Python 3.11 · scikit-learn · librosa · scipy · pandas · Streamlit · Azure Functions · GitHub</text>
+</svg>
