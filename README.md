@@ -10,7 +10,7 @@
 [![Azure](https://img.shields.io/badge/Azure-Functions-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-**Proyecto de Egreso · Ingeniería Mecatrónica · Universidad Nacional de Ingeniería (UNI) · Lima, Perú**
+**Proyecto de Egreso · Ingeniería Mecatrónica (9no ciclo) · Universidad Nacional de Ingeniería (UNI) · Lima, Perú**
 
 [Demo en vivo](#demo) · [Instalación](#instalacion) · [Arquitectura](#arquitectura) · [Resultados](#resultados)
 
@@ -135,7 +135,7 @@ Antes de seleccionar el modelo final se evaluaron 5 algoritmos sobre los datos r
 
 ```bash
 # 1. Clonar repositorio
-git clone https://github.com/Stone715/mimii-anomaly-detection.git
+git clone https://github.com/PedroFernandez07/mimii-anomaly-detection.git
 cd mimii-anomaly-detection
 
 # 2. Instalar dependencias
@@ -200,10 +200,11 @@ Ver `scripts/cloud_handler.py` para el handler completo de Azure Functions y GCP
 ## Autor
 
 **Pedro Santiago**
-Egresado de Ingeniería Mecatrónica · Universidad Nacional de Ingeniería (UNI) · Lima, Perú
+Estudiante de Ingeniería Mecatrónica (9no ciclo) · Universidad Nacional de Ingeniería (UNI) · Lima, Perú
+Especialización en curso: Data Engineering
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://linkedin.com/in/tu-perfil)
-[![GitHub](https://img.shields.io/badge/GitHub-Stone715-181717?style=flat&logo=github)](https://github.com/Stone715)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://www.linkedin.com/in/pedro-fernandez-avila)
+[![GitHub](https://img.shields.io/badge/GitHub-PedroFernandez07-181717?style=flat&logo=github)](https://github.com/PedroFernandez07)
 
 ---
 
