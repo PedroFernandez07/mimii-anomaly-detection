@@ -65,7 +65,7 @@ El pipeline está completamente desacoplado en tres capas:
 ## Estructura del Proyecto
 
 ```
-mimii-mvp/
+mimii-anomaly-detection/
 ├── app.py                          # Dashboard Streamlit
 ├── recalibrate.py                  # Recalibración de umbrales
 ├── requirements.txt
@@ -77,17 +77,16 @@ mimii-mvp/
 │
 ├── scripts/
 │   ├── benchmark.py                # Comparación 5 algoritmos
-│   ├── optimize_model.py           # Búsqueda de hiperparámetros
 │   └── cloud_handler.py            # Handler Azure Functions / GCP
 │
-├── models/                         # Artefactos serializados
-│   ├── lof_model.pkl
-│   ├── robust_scaler.pkl
+├── models/                         # Artefactos generados localmente*
 │   └── training_meta.json
 │
 └── docs/
     └── architecture.svg            # Diagrama de arquitectura
 ```
+
+> **Nota:** Los artefactos del modelo (`lof_model.pkl`, `robust_scaler.pkl`) no están incluidos en el repositorio. Genéralos ejecutando los pasos 4 y 5 de la instalación con el dataset descargado.
 
 ---
 
@@ -128,7 +127,7 @@ Antes de seleccionar el modelo final se evaluaron 5 algoritmos sobre los datos r
 | **F1-Score** | 0.690 | Balance global |
 | **Escenario** | +6 dB SNR | El más difícil del dataset |
 
-> El umbral fue calibrado para **Recall ≥ 0.90** porque en mantenimiento industrial el costo de una falla no detectada supera al de una inspección innecesaria. Por cada falla real detectada se generan ~0.8 falsas alarmas — ratio operacionalmente aceptable.
+> El umbral fue calibrado para **Recall ≥ 0.90** porque en mantenimiento predictivo industrial el costo de una falla no detectada supera al de una inspección innecesaria. Por cada falla real detectada se generan ~0.8 falsas alarmas — ratio operacionalmente aceptable.
 
 ---
 
@@ -136,8 +135,8 @@ Antes de seleccionar el modelo final se evaluaron 5 algoritmos sobre los datos r
 
 ```bash
 # 1. Clonar repositorio
-git clone https://github.com/tu-usuario/mimii-mvp.git
-cd mimii-mvp
+git clone https://github.com/Stone715/mimii-anomaly-detection.git
+cd mimii-anomaly-detection
 
 # 2. Instalar dependencias
 pip install -r requirements.txt
@@ -204,7 +203,7 @@ Ver `scripts/cloud_handler.py` para el handler completo de Azure Functions y GCP
 Egresado de Ingeniería Mecatrónica · Universidad Nacional de Ingeniería (UNI) · Lima, Perú
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://linkedin.com/in/tu-perfil)
-[![GitHub](https://img.shields.io/badge/GitHub-Perfil-181717?style=flat&logo=github)](https://github.com/tu-usuario)
+[![GitHub](https://img.shields.io/badge/GitHub-Stone715-181717?style=flat&logo=github)](https://github.com/Stone715)
 
 ---
 
