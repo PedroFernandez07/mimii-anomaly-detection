@@ -1,0 +1,9 @@
+pump/
+models/*.pkl
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+*.zip
+*.tar.gz
