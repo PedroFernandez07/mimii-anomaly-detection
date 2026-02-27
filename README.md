@@ -164,7 +164,7 @@ El dashboard simula un panel de control SCADA industrial con:
 - **Carga de audios WAV** para inferencia instantánea
 - **Gauge de Índice de Salud** (0–100%) con escala cromática
 - **Expandible de Auditoría** con Ground Truth vs. predicción del modelo
-🌐 **Live demo:** https://mimii-app.wonderfulfield-74501e25.eastus.azurecontainerapps.io/
+- **Live demo:** https://mimii-app.wonderfulfield-74501e25.eastus.azurecontainerapps.io/
 ---
 
 ## Despliegue en la Nube
