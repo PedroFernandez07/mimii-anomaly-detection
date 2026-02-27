@@ -27,13 +27,14 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from core.inference_engine import InferenceEngine, InferenceResult, STATUS_NORMAL, STATUS_ALERT, STATUS_WARN
+from core.blob_loader import download_models_if_needed
 
 # ---------------------------------------------------------------------------
 # Configuración de página
 # ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="MIMII — Monitor Industrial de Bombas",
-    page_icon="MMM",
+    page_icon="⚙️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -147,6 +148,7 @@ _init_session()
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner="Cargando modelo de IA...")
 def get_engine(model_dir: str) -> InferenceEngine | None:
+    download_models_if_needed(model_dir)
     try:
         engine = InferenceEngine(model_dir=model_dir)
         engine._load()
@@ -206,7 +208,7 @@ def render_feature_sparkline(features: np.ndarray) -> plt.Figure:
     fig.patch.set_facecolor("#161b22")
     ax.set_facecolor("#161b22")
 
-    norm = (features - features.min()) / (np.ptp(features) + 1e-9)
+    norm = (features - features.min()) / (features.ptp() + 1e-9)
     colors = ["#3fb950" if v < 0.6 else "#d29922" if v < 0.85 else "#f85149"
               for v in norm]
     ax.bar(range(len(norm)), norm, color=colors, width=1.0, linewidth=0)
