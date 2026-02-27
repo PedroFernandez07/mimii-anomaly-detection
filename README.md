@@ -117,7 +117,7 @@ Antes de seleccionar el modelo final se evaluaron 5 algoritmos sobre los datos r
 
 ---
 
-## Resultados Finales {#resultados}
+## Resultados Finales
 
 | Métrica | Valor | Interpretación |
 |---------|-------|----------------|
@@ -131,7 +131,7 @@ Antes de seleccionar el modelo final se evaluaron 5 algoritmos sobre los datos r
 
 ---
 
-## Instalación {#instalacion}
+## Instalación
 
 ```bash
 # 1. Clonar repositorio
@@ -157,15 +157,14 @@ streamlit run app.py
 
 ---
 
-## Demo {#demo}
-
+## Demo
 El dashboard simula un panel de control SCADA industrial con:
 
 - **4 estaciones** de bomba monitoreadas (id_00, id_02, id_04, id_06)
 - **Carga de audios WAV** para inferencia instantánea
 - **Gauge de Índice de Salud** (0–100%) con escala cromática
 - **Expandible de Auditoría** con Ground Truth vs. predicción del modelo
-
+🌐 **Live demo:** https://mimii-app.wonderfulfield-74501e25.eastus.azurecontainerapps.io/
 ---
 
 ## Despliegue en la Nube
