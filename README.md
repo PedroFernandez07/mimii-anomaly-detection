@@ -59,7 +59,8 @@ mimii-anomaly-detection/
 ├── app.py                          # Monitor acustico individual
 ├── central_monitoreo.py            # Central de monitoreo 2 plantas / 20 bombas
 ├── recalibrate.py                  # Recalibracion de umbrales
-├── Dockerfile                      # Contenedor para Azure
+├── Dockerfile                      # Contenedor app.py (Azure)
+├── Dockerfile.central              # Contenedor central_monitoreo.py (Azure)
 ├── requirements.txt
 │
 ├── core/
@@ -162,7 +163,11 @@ streamlit run central_monitoreo.py
 ## Demo
 
 **Live demo (Azure Container Apps):**
-https://mimii-app.wonderfulfield-74501e25.eastus.azurecontainerapps.io/
+
+| Interfaz | URL |
+|----------|-----|
+| Monitor individual | https://mimii-app.wonderfulfield-74501e25.eastus.azurecontainerapps.io/ |
+| Central de monitoreo | https://mimii-central.wonderfulfield-74501e25.eastus.azurecontainerapps.io/ |
 
 El sistema incluye dos interfaces:
 
@@ -187,9 +192,11 @@ Infraestructura desplegada:
 
 | Servicio | Recurso | Proposito |
 |----------|---------|-----------|
-| Azure Container Registry | mimiiregistry | Almacena imagen Docker |
-| Azure Container Apps | mimii-app | Ejecuta la aplicacion Streamlit |
-| Azure Blob Storage | mimiimodels / models | Almacena artefactos del modelo |
+| Azure Container Registry | mimiiregistry | Almacena imagenes Docker |
+| Azure Container Apps | mimii-app | Monitor individual (app.py) |
+| Azure Container Apps | mimii-central | Central de monitoreo (central_monitoreo.py) |
+| Azure Blob Storage | mimiimodels / models | Artefactos del modelo (LOF + Scaler) |
+| Azure Blob Storage | mimiimodels / audio-val | Audios de validacion del dataset |
 | Log Analytics | workspace-mimiirg | Monitoreo y logs |
 
 ---
