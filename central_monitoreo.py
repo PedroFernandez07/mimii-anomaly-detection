@@ -7,7 +7,7 @@ Ingenieria Mecatronica · UNI
 """
 
 from __future__ import annotations
-import os, random
+import os, random, tempfile
 from pathlib import Path
 import numpy as np
 import streamlit as st
@@ -16,8 +16,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 from core.inference_engine import InferenceEngine
 from core.blob_loader import download_models_if_needed
 
-DATA_DIR  = Path("pump")
-MODEL_DIR = Path("models")
+# ── Intentar importar azure-storage-blob ─────────────────────────────────────
+try:
+    from azure.storage.blob import BlobServiceClient
+    AZURE_AVAILABLE = True
+except ImportError:
+    AZURE_AVAILABLE = False
+
+DATA_DIR         = Path("pump")           # fallback local
+MODEL_DIR        = Path("models")
+AUDIO_CONTAINER  = "audio-val"
 MACHINE_IDS      = ["id_00", "id_02", "id_04", "id_06"]
 BOMBAS_POR_PLANTA = 20
 TRAIN_RATIO       = 0.80
@@ -42,19 +50,13 @@ html, body, .stApp {
   font-family: 'IBM Plex Sans', sans-serif;
 }
 
-/* Ocultar elementos Streamlit */
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 0 !important; max-width: 100% !important; }
 section[data-testid="stSidebar"] { display: none; }
 div[data-testid="stToolbar"] { display: none; }
 
-.app-wrapper {
-  padding: 0;
-  min-height: 100vh;
-  background: #1a1a1a;
-}
+.app-wrapper { padding: 0; min-height: 100vh; background: #1a1a1a; }
 
-/* ── TOPBAR ── */
 .topbar {
   background: #111;
   border-bottom: 1px solid #2e2e2e;
@@ -67,11 +69,7 @@ div[data-testid="stToolbar"] { display: none; }
   top: 0;
   z-index: 100;
 }
-.topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
+.topbar-left { display: flex; align-items: center; gap: 24px; }
 .topbar-logo {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 13px;
@@ -80,16 +78,8 @@ div[data-testid="stToolbar"] { display: none; }
   letter-spacing: 2px;
   text-transform: uppercase;
 }
-.topbar-sep {
-  width: 1px;
-  height: 20px;
-  background: #2e2e2e;
-}
-.topbar-sub {
-  font-size: 11px;
-  color: #666;
-  font-weight: 300;
-}
+.topbar-sep { width: 1px; height: 20px; background: #2e2e2e; }
+.topbar-sub { font-size: 11px; color: #666; font-weight: 300; }
 .topbar-right {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
@@ -98,7 +88,6 @@ div[data-testid="stToolbar"] { display: none; }
   line-height: 1.6;
 }
 
-/* ── TOOLBAR ── */
 .toolbar {
   background: #161616;
   border-bottom: 1px solid #2a2a2a;
@@ -108,7 +97,6 @@ div[data-testid="stToolbar"] { display: none; }
   gap: 16px;
 }
 
-/* ── STATSBAR ── */
 .statsbar {
   background: #161616;
   border-bottom: 1px solid #2a2a2a;
@@ -118,11 +106,7 @@ div[data-testid="stToolbar"] { display: none; }
   gap: 32px;
 }
 .stat-block { display: flex; align-items: baseline; gap: 6px; }
-.stat-num {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 22px;
-  font-weight: 500;
-}
+.stat-num { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 500; }
 .stat-lbl { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-divider { width: 1px; height: 28px; background: #2a2a2a; }
 .c-alert  { color: #c0392b; }
@@ -132,7 +116,6 @@ div[data-testid="stToolbar"] { display: none; }
 .c-blue   { color: #5b8dd9; }
 .c-white  { color: #e0e0e0; }
 
-/* ── GRID ── */
 .pump-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -142,7 +125,6 @@ div[data-testid="stToolbar"] { display: none; }
   margin: 0;
 }
 
-/* ── PUMP CARD ── */
 .pump-card {
   background: #1e1e1e;
   padding: 14px 16px;
@@ -150,7 +132,6 @@ div[data-testid="stToolbar"] { display: none; }
   transition: background 0.15s;
 }
 .pump-card:hover { background: #222; }
-
 .pump-card::before {
   content: '';
   position: absolute;
@@ -185,7 +166,6 @@ div[data-testid="stToolbar"] { display: none; }
   text-overflow: ellipsis;
   max-width: 160px;
 }
-
 .status-badge {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
@@ -203,62 +183,28 @@ div[data-testid="stToolbar"] { display: none; }
 .badge-warn    { background: #2a1f0d; color: #b7770d; }
 .badge-none    { background: #1e1e1e; color: #444; border: 1px solid #2e2e2e; }
 
-/* SVG indicator */
-.status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  display: inline-block;
-}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 .dot-normal { background: #27ae60; }
 .dot-alert  { background: #c0392b; }
 .dot-warn   { background: #b7770d; }
 .dot-none   { background: #333; }
 
-/* ── METRICAS ── */
-.metrics-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
-  margin-top: 10px;
-}
+.metrics-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
 .metric-cell {
   background: #181818;
   border: 1px solid #252525;
   padding: 6px 8px;
   border-radius: 2px;
 }
-.metric-lbl {
-  font-size: 9px;
-  color: #555;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 3px;
-}
-.metric-val {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
-  font-weight: 500;
-  color: #c8c8c8;
-}
+.metric-lbl { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.metric-val { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; color: #c8c8c8; }
 .metric-val.v-ok   { color: #27ae60; }
 .metric-val.v-warn { color: #b7770d; }
 .metric-val.v-bad  { color: #c0392b; }
 
-/* Health bar */
-.health-bar-bg {
-  height: 2px;
-  background: #2a2a2a;
-  border-radius: 1px;
-  margin-top: 4px;
-  overflow: hidden;
-}
-.health-bar-fill {
-  height: 2px;
-  border-radius: 1px;
-  transition: width 0.4s ease;
-}
+.health-bar-bg { height: 2px; background: #2a2a2a; border-radius: 1px; margin-top: 4px; overflow: hidden; }
+.health-bar-fill { height: 2px; border-radius: 1px; transition: width 0.4s ease; }
 
-/* GT vs Pred */
 .gt-row {
   margin-top: 8px;
   padding-top: 8px;
@@ -268,23 +214,11 @@ div[data-testid="stToolbar"] { display: none; }
   justify-content: space-between;
 }
 .gt-lbl { font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; }
-.gt-val {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+.gt-val { font-family: 'IBM Plex Mono', monospace; font-size: 10px; display: flex; align-items: center; gap: 4px; }
 .gt-ok  { color: #27ae60; }
 .gt-err { color: #c0392b; }
 
-/* ── EMPTY STATE ── */
-.empty-state {
-  grid-column: 1 / -1;
-  padding: 80px 32px;
-  text-align: center;
-  color: #444;
-}
+.empty-state { grid-column: 1 / -1; padding: 80px 32px; text-align: center; color: #444; }
 .empty-title {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 13px;
@@ -294,7 +228,6 @@ div[data-testid="stToolbar"] { display: none; }
 }
 .empty-sub { font-size: 12px; color: #333; }
 
-/* ── FOOTER ── */
 .app-footer {
   border-top: 1px solid #2a2a2a;
   padding: 12px 32px;
@@ -303,14 +236,8 @@ div[data-testid="stToolbar"] { display: none; }
   align-items: center;
   margin-top: 1px;
 }
-.footer-text {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  color: #444;
-  letter-spacing: 0.5px;
-}
+.footer-text { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #444; letter-spacing: 0.5px; }
 
-/* Streamlit buttons override */
 div[data-testid="stButton"] > button {
   background: #252525 !important;
   color: #c8c8c8 !important;
@@ -330,11 +257,8 @@ div[data-testid="stButton"] > button:hover {
   border-color: #444 !important;
   color: #e0e0e0 !important;
 }
-div[data-testid="stButton"] > button:active {
-  background: #333 !important;
-}
+div[data-testid="stButton"] > button:active { background: #333 !important; }
 
-/* Selectbox */
 div[data-testid="stSelectbox"] > div > div {
   background: #1e1e1e !important;
   border: 1px solid #333 !important;
@@ -344,22 +268,66 @@ div[data-testid="stSelectbox"] > div > div {
   font-size: 12px !important;
 }
 
-/* Progress bar */
-div[data-testid="stProgressBar"] > div {
-  background: #252525 !important;
-}
-div[data-testid="stProgressBar"] > div > div {
-  background: #5b8dd9 !important;
-}
+div[data-testid="stProgressBar"] > div { background: #252525 !important; }
+div[data-testid="stProgressBar"] > div > div { background: #5b8dd9 !important; }
 </style>
 """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Funciones
+# Carga de catalogo de audios (Blob o local)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def get_unseen_files(data_dir: Path) -> list[dict]:
+def _get_connection_string() -> str | None:
+    return os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+
+
+@st.cache_resource(show_spinner=False)
+def get_blob_service() -> "BlobServiceClient | None":
+    if not AZURE_AVAILABLE:
+        return None
+    conn = _get_connection_string()
+    if not conn:
+        return None
+    try:
+        return BlobServiceClient.from_connection_string(conn)
+    except Exception:
+        return None
+
+
+@st.cache_data(show_spinner=False)
+def build_blob_catalog() -> list[dict]:
+    """Lista todos los blobs en audio-val y construye el catalogo."""
+    service = get_blob_service()
+    if service is None:
+        return []
+    try:
+        container = service.get_container_client(AUDIO_CONTAINER)
+        catalog = []
+        for blob in container.list_blobs():
+            # Estructura: {machine_id}/{label}/{filename}
+            parts = blob.name.split("/")
+            if len(parts) != 3:
+                continue
+            machine_id, label, filename = parts
+            if machine_id not in MACHINE_IDS:
+                continue
+            if label not in ("normal", "abnormal"):
+                continue
+            catalog.append({
+                "blob_name": blob.name,
+                "machine_id": machine_id,
+                "label": label,
+                "filename": filename,
+                "source": "blob",
+            })
+        return catalog
+    except Exception:
+        return []
+
+
+def get_unseen_files_local(data_dir: Path) -> list[dict]:
+    """Fallback: lee desde carpeta local pump/ con el mismo split."""
     unseen = []
     rng = np.random.default_rng(RANDOM_STATE)
     for machine_id in MACHINE_IDS:
@@ -383,9 +351,46 @@ def get_unseen_files(data_dir: Path) -> list[dict]:
                     "machine_id": machine_id,
                     "label": label,
                     "filename": f.name,
+                    "source": "local",
                 })
     return unseen
 
+
+@st.cache_data(show_spinner=False)
+def get_all_unseen() -> list[dict]:
+    """Devuelve catalogo desde Blob si esta disponible, si no desde local."""
+    blob_catalog = build_blob_catalog()
+    if blob_catalog:
+        return blob_catalog
+    # Fallback local
+    return get_unseen_files_local(DATA_DIR)
+
+
+def download_blob_to_tempfile(blob_name: str) -> str:
+    """Descarga un blob a un archivo temporal y devuelve su ruta."""
+    service = get_blob_service()
+    if service is None:
+        raise RuntimeError("Azure Blob no disponible")
+    container = service.get_container_client(AUDIO_CONTAINER)
+    blob_data = container.download_blob(blob_name).readall()
+    suffix = Path(blob_name).suffix
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.write(blob_data)
+    tmp.flush()
+    tmp.close()
+    return tmp.name
+
+
+def get_audio_path(bomba: dict) -> str:
+    """Devuelve ruta local al audio (descargando desde Blob si necesario)."""
+    if bomba.get("source") == "blob":
+        return download_blob_to_tempfile(bomba["blob_name"])
+    return bomba["path"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers UI
+# ─────────────────────────────────────────────────────────────────────────────
 
 @st.cache_resource(show_spinner=False)
 def get_engine() -> InferenceEngine | None:
@@ -394,13 +399,8 @@ def get_engine() -> InferenceEngine | None:
         engine = InferenceEngine(model_dir=MODEL_DIR)
         engine._load()
         return engine
-    except Exception as e:
+    except Exception:
         return None
-
-
-@st.cache_data(show_spinner=False)
-def get_all_unseen() -> list[dict]:
-    return get_unseen_files(DATA_DIR)
 
 
 def status_badge(status: str) -> str:
@@ -446,10 +446,10 @@ def render_card(idx: int, bomba: dict) -> str:
           </div>
         </div>"""
 
-    status = result.get("status", "—")
-    health = result.get("health_index", 0.0)
-    score  = result.get("anomaly_score", 0.0)
-    gt     = bomba.get("label", "—")
+    status    = result.get("status", "—")
+    health    = result.get("health_index", 0.0)
+    score     = result.get("anomaly_score", 0.0)
+    gt        = bomba.get("label", "—")
     pred_anom = result.get("is_anomaly", False)
     gt_anom   = gt == "abnormal"
     correct   = gt_anom == pred_anom
@@ -497,8 +497,8 @@ def render_card(idx: int, bomba: dict) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
+
 def main():
-    # Session state
     for key, val in [
         ("bombas", {"Planta Norte": [], "Planta Sur": []}),
         ("planta", "Planta Norte"),
@@ -506,8 +506,8 @@ def main():
         if key not in st.session_state:
             st.session_state[key] = val
 
-    engine  = get_engine()
-    unseen  = get_all_unseen()
+    engine = get_engine()
+    unseen = get_all_unseen()
 
     # ── TOPBAR ──────────────────────────────────────────────────────────────
     st.markdown("""
@@ -533,7 +533,7 @@ def main():
 
     with col_sel:
         planta = st.selectbox(
-            "", ["Planta Norte", "Planta Sur"],
+            "Planta", ["Planta Norte", "Planta Sur"],
             key="planta", label_visibility="collapsed"
         )
 
@@ -553,14 +553,23 @@ def main():
 
     # ── LOGICA BOTONES ───────────────────────────────────────────────────────
     if cargar:
-        otra = "Planta Sur" if planta == "Planta Norte" else "Planta Norte"
-        usados = {b["path"] for b in st.session_state.bombas.get(otra, [])}
-        disponibles = [f for f in unseen if f["path"] not in usados]
-        if len(disponibles) < BOMBAS_POR_PLANTA:
-            st.warning(f"Solo hay {len(disponibles)} archivos disponibles sin repetir con la otra planta.")
-        seleccion = random.sample(disponibles, min(BOMBAS_POR_PLANTA, len(disponibles)))
-        st.session_state.bombas[planta] = [{**b, "result": None} for b in seleccion]
-        st.rerun()
+        if not unseen:
+            st.error("No se encontraron audios. Verifica que el container 'audio-val' en Azure Blob este poblado.")
+        else:
+            otra = "Planta Sur" if planta == "Planta Norte" else "Planta Norte"
+            usados = {
+                b.get("blob_name") or b.get("path")
+                for b in st.session_state.bombas.get(otra, [])
+            }
+            disponibles = [
+                f for f in unseen
+                if (f.get("blob_name") or f.get("path")) not in usados
+            ]
+            if len(disponibles) < BOMBAS_POR_PLANTA:
+                st.warning(f"Solo hay {len(disponibles)} archivos disponibles sin repetir con la otra planta.")
+            seleccion = random.sample(disponibles, min(BOMBAS_POR_PLANTA, len(disponibles)))
+            st.session_state.bombas[planta] = [{**b, "result": None} for b in seleccion]
+            st.rerun()
 
     if limpiar:
         st.session_state.bombas[planta] = []
@@ -571,14 +580,25 @@ def main():
     if analizar and bombas and engine:
         bar = st.progress(0)
         for i, bomba in enumerate(bombas):
-            r = engine.predict(bomba["path"], machine_id=bomba["machine_id"])
-            st.session_state.bombas[planta][i]["result"] = r.to_dict()
-            bar.progress((i + 1) / len(bombas))
+            try:
+                audio_path = get_audio_path(bomba)
+                r = engine.predict(audio_path, machine_id=bomba["machine_id"])
+                st.session_state.bombas[planta][i]["result"] = r.to_dict()
+            except Exception as e:
+                st.session_state.bombas[planta][i]["result"] = {
+                    "status": "ALERTA",
+                    "is_anomaly": True,
+                    "health_index": 0.0,
+                    "anomaly_score": 0.0,
+                    "error": str(e),
+                }
+            finally:
+                bar.progress((i + 1) / len(bombas))
         bar.empty()
         st.rerun()
 
-    # ── STATSBAR ─────────────────────────────────────────────────────────────
-    bombas = st.session_state.bombas.get(planta, [])
+    # ── STATSBAR ────────────────────────────────────────────────────────────
+    bombas       = st.session_state.bombas.get(planta, [])
     analizadas   = [b for b in bombas if b.get("result")]
     alertas      = sum(1 for b in analizadas if b["result"]["status"] == "ALERTA")
     advertencias = sum(1 for b in analizadas if b["result"]["status"] == "ADVERTENCIA")
@@ -589,7 +609,7 @@ def main():
         1 for b in analizadas
         if (b["label"] == "abnormal") == b["result"]["is_anomaly"]
     )
-    accuracy = (correctas / len(analizadas) * 100) if analizadas else 0
+    accuracy    = (correctas / len(analizadas) * 100) if analizadas else 0
     salud_media = np.mean([b["result"]["health_index"] for b in analizadas]) if analizadas else 0
 
     st.markdown(f"""
@@ -626,7 +646,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # ── GRID ─────────────────────────────────────────────────────────────────
+    # ── GRID ────────────────────────────────────────────────────────────────
     if not bombas:
         st.markdown("""
         <div class="pump-grid">
@@ -640,7 +660,7 @@ def main():
         cards_html = "".join(render_card(i, b) for i, b in enumerate(bombas))
         st.markdown(f'<div class="pump-grid">{cards_html}</div>', unsafe_allow_html=True)
 
-    # ── FOOTER ───────────────────────────────────────────────────────────────
+    # ── FOOTER ──────────────────────────────────────────────────────────────
     st.markdown("""
     <div class="app-footer">
       <span class="footer-text">
