@@ -1,557 +1,800 @@
 """
 app.py
 ======
-Tablero de Control Industrial — Detección de Anomalías Acústicas
-Sistema basado en MIMII Dataset (Pump, +6 dB SNR) | UNI Mecatrónica
-
-Interfaz Streamlit que simula un SCADA de planta con 4 estaciones de bomba.
-
-Ejecutar:
-  streamlit run app.py
+Monitor de Anomalias Acusticas — MIMII Pump Dataset
+Curso de Inteligencia Artificial · Prof. Ing. Ivan Calle
+Ingenieria Mecatronica · UNI
 """
 
 from __future__ import annotations
 
-import io
 import os
 import tempfile
 from pathlib import Path
+from collections import deque
 
 import numpy as np
 import streamlit as st
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 
-# ── Importaciones del proyecto ────────────────────────────────────────────────
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from core.inference_engine import InferenceEngine, InferenceResult, STATUS_NORMAL, STATUS_ALERT, STATUS_WARN
 from core.blob_loader import download_models_if_needed
 
-# ---------------------------------------------------------------------------
-# Configuración de página
-# ---------------------------------------------------------------------------
+MACHINE_IDS = ["id_00", "id_02", "id_04", "id_06"]
+MODEL_DIR   = Path(__file__).parent / "models"
+MAX_HISTORY = 20
+
 st.set_page_config(
-    page_title="MIMII — Monitor Industrial de Bombas",
-    page_icon="⚙️",
+    page_title="MIMII Acoustic Monitor",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------------------------
-# CSS personalizado — aspecto de panel de control industrial
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# CSS — mismo sistema de diseño que central_monitoreo.py
+# ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* Fondo oscuro industrial */
-.stApp { background-color: #0d1117; color: #c9d1d9; }
-.main .block-container { padding-top: 1rem; max-width: 1400px; }
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
-/* Cards de estación */
-.station-card {
-    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-    border: 1px solid #30363d;
-    border-radius: 12px;
-    padding: 1.2rem;
-    margin: 0.4rem 0;
-    transition: border-color 0.3s;
-}
-.station-card:hover { border-color: #58a6ff; }
-.station-normal { border-left: 4px solid #3fb950; }
-.station-warn   { border-left: 4px solid #d29922; }
-.station-alert  { border-left: 4px solid #f85149; }
-.station-idle   { border-left: 4px solid #8b949e; }
+*, *::before, *::after { box-sizing: border-box; }
 
-/* KPI badges */
-.kpi-badge {
-    display: inline-block;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-weight: 700;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-}
-.badge-normal { background:#1a3a1e; color:#3fb950; }
-.badge-warn   { background:#3b2a0e; color:#d29922; }
-.badge-alert  { background:#3b1214; color:#f85149; }
-.badge-idle   { background:#1e2530; color:#8b949e; }
-
-/* Métricas */
-[data-testid="metric-container"] {
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 8px;
-    padding: 0.6rem 1rem;
-}
-[data-testid="metric-container"] label { color: #8b949e !important; font-size:0.75rem; }
-[data-testid="metric-container"] [data-testid="metric-value"] {
-    color: #58a6ff !important; font-size: 1.6rem !important; font-weight: 700;
+html, body, .stApp {
+  background: #1a1a1a;
+  color: #c8c8c8;
+  font-family: 'IBM Plex Sans', sans-serif;
 }
 
-/* Sidebar */
-section[data-testid="stSidebar"] { background-color: #161b22; border-right: 1px solid #30363d; }
-section[data-testid="stSidebar"] * { color: #c9d1d9 !important; }
+#MainMenu, footer, header { visibility: hidden; }
+div[data-testid="stToolbar"] { display: none !important; }
+div[data-testid="stDecoration"] { display: none !important; }
+div[data-testid="stStatusWidget"] { display: none !important; }
+.block-container { padding: 1rem 2rem 2rem 2rem !important; max-width: 100% !important; }
 
-/* Header */
-h1 { color: #58a6ff !important; }
-h2, h3 { color: #79c0ff !important; }
+/* ── TOPBAR ── */
+.topbar {
+  background: #111;
+  border: 1px solid #2e2e2e;
+  border-radius: 4px;
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.topbar-logo {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e0e0e0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.topbar-sep { width: 1px; height: 20px; background: #2e2e2e; margin: 0 20px; display:inline-block; }
+.topbar-sub { font-size: 11px; color: #555; }
+.topbar-right {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #444;
+  text-align: right;
+  line-height: 1.8;
+}
 
-/* Gauge container */
-.gauge-wrapper { display: flex; justify-content: center; }
+/* ── SIDEBAR ── */
+section[data-testid="stSidebar"] {
+  background: #111 !important;
+  border-right: 1px solid #2a2a2a !important;
+}
+section[data-testid="stSidebar"] * { color: #c8c8c8 !important; }
+section[data-testid="stSidebar"] .stSelectbox > div > div {
+  background: #1a1a1a !important;
+  border: 1px solid #2e2e2e !important;
+  border-radius: 2px !important;
+  font-family: 'IBM Plex Mono', monospace !important;
+  font-size: 12px !important;
+}
+section[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] {
+  background: #161616 !important;
+  border: 1px dashed #2e2e2e !important;
+  border-radius: 2px !important;
+}
 
-/* Upload area */
-[data-testid="stFileUploadDropzone"] {
-    background: #161b22 !important;
-    border: 2px dashed #30363d !important;
-    border-radius: 8px;
+/* ── STATUS INDICATOR ── */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 2px;
+  border: 1px solid #2a2a2a;
+  margin-bottom: 16px;
+}
+.status-row.s-normal { border-left: 3px solid #27ae60; background: #0d1a10; }
+.status-row.s-alert  { border-left: 3px solid #c0392b; background: #1a0d0d; }
+.status-row.s-warn   { border-left: 3px solid #b7770d; background: #1a150d; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-normal { background: #27ae60; }
+.dot-alert  { background: #c0392b; }
+.dot-warn   { background: #b7770d; }
+.status-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.c-normal { color: #27ae60; }
+.c-alert  { color: #c0392b; }
+.c-warn   { color: #b7770d; }
+.status-machine {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #555;
+  letter-spacing: 1px;
+}
+
+/* ── METRICS STRIP ── */
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: #2a2a2a;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.metric-block {
+  background: #1a1a1a;
+  padding: 12px 16px;
+}
+.metric-lbl {
+  font-size: 9px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+.metric-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 20px;
+  font-weight: 500;
+  color: #c8c8c8;
+}
+.metric-val.v-ok   { color: #27ae60; }
+.metric-val.v-warn { color: #b7770d; }
+.metric-val.v-bad  { color: #c0392b; }
+.metric-val.v-blue { color: #5b8dd9; }
+
+/* ── HEALTH BAR ── */
+.health-bar-container {
+  margin-bottom: 20px;
+}
+.health-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.health-bar-bg {
+  height: 6px;
+  background: #2a2a2a;
+  border-radius: 1px;
+  overflow: hidden;
+}
+.health-bar-fill {
+  height: 6px;
+  border-radius: 1px;
+  transition: width 0.5s ease;
+}
+
+/* ── FEATURE CHART CONTAINER ── */
+.chart-section {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.chart-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+/* ── GT AUDIT PANEL ── */
+.audit-panel {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.audit-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2a2a2a;
+}
+.audit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #212121;
+  font-size: 12px;
+}
+.audit-key { color: #555; font-size: 11px; }
+.audit-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: #c8c8c8;
+}
+.audit-ok  { color: #27ae60; }
+.audit-err { color: #c0392b; }
+
+/* ── HISTORY TABLE ── */
+.history-section {
+  margin-top: 24px;
+}
+.history-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1px;
+}
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.history-table th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #2a2a2a;
+  background: #111;
+}
+.history-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e1e1e;
+  font-family: 'IBM Plex Mono', monospace;
+  color: #888;
+  vertical-align: middle;
+}
+.history-table tr:hover td { background: #1e1e1e; }
+
+.h-dot { width: 6px; height: 6px; border-radius: 50%; display:inline-block; margin-right: 6px; vertical-align: middle; }
+.h-normal { background: #27ae60; }
+.h-alert  { background: #c0392b; }
+.h-warn   { background: #b7770d; }
+
+.verdict-ok  { color: #27ae60; }
+.verdict-err { color: #c0392b; }
+
+/* ── SIDEBAR MODEL STATUS ── */
+.model-status {
+  background: #0d1a10;
+  border: 1px solid #1a3020;
+  border-radius: 2px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+.model-status.error {
+  background: #1a0d0d;
+  border-color: #3a1515;
+}
+.model-status-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.model-status-label.ok  { color: #27ae60; }
+.model-status-label.err { color: #c0392b; }
+.model-meta {
+  font-size: 11px;
+  color: #555;
+  line-height: 1.8;
+}
+.model-meta span { color: #888; }
+
+/* Sidebar buttons */
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+  background: #1e1e1e !important;
+  color: #c8c8c8 !important;
+  border: 1px solid #2e2e2e !important;
+  border-radius: 2px !important;
+  font-family: 'IBM Plex Mono', monospace !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
+  background: #252525 !important;
+  border-color: #3a3a3a !important;
+}
+
+/* Sidebar divider */
+.sidebar-section {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 12px 0 8px 0;
+  border-top: 1px solid #1e1e1e;
+  margin-top: 8px;
+}
+
+/* Footer */
+.app-footer {
+  border-top: 1px solid #2a2a2a;
+  padding: 12px 0;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 32px;
+}
+.footer-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #333;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# Constantes
-# ---------------------------------------------------------------------------
-MACHINE_IDS = ["id_00", "id_02", "id_04", "id_06"]
-STATUS_CSS = {
-    STATUS_NORMAL: ("normal", "badge-normal"),
-    STATUS_WARN:   ("warn",   "badge-warn"),
-    STATUS_ALERT:  ("alert",  "badge-alert"),
-}
-STATUS_LABEL_ES = {
-    STATUS_NORMAL: "NORMAL",
-    STATUS_WARN:   "ADVERTENCIA",
-    STATUS_ALERT:  "ALERTA CRÍTICA",
-}
-MODEL_DIR = Path(__file__).parent / "models"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session state
+# ─────────────────────────────────────────────────────────────────────────────
+if "history" not in st.session_state:
+    st.session_state.history: deque = deque(maxlen=MAX_HISTORY)
+if "last_result" not in st.session_state:
+    st.session_state.last_result = None
+if "last_gt" not in st.session_state:
+    st.session_state.last_gt = "—"
 
 
-# ---------------------------------------------------------------------------
-# Estado de sesión
-# ---------------------------------------------------------------------------
-def _init_session():
-    if "station_results" not in st.session_state:
-        st.session_state.station_results: dict[str, InferenceResult | None] = {
-            mid: None for mid in MACHINE_IDS
-        }
-    if "engine" not in st.session_state:
-        st.session_state.engine = None
-    if "engine_error" not in st.session_state:
-        st.session_state.engine_error = None
-
-
-_init_session()
-
-
-# ---------------------------------------------------------------------------
-# Carga del modelo (cacheada)
-# ---------------------------------------------------------------------------
-@st.cache_resource(show_spinner="Cargando modelo de IA...")
+# ─────────────────────────────────────────────────────────────────────────────
+# Engine
+# ─────────────────────────────────────────────────────────────────────────────
+@st.cache_resource(show_spinner=False)
 def get_engine(model_dir: str) -> InferenceEngine | None:
     download_models_if_needed(model_dir)
     try:
         engine = InferenceEngine(model_dir=model_dir)
         engine._load()
         return engine
-    except FileNotFoundError:
+    except Exception:
         return None
 
 
-# ---------------------------------------------------------------------------
-# Componentes de visualización
-# ---------------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers visualización
+# ─────────────────────────────────────────────────────────────────────────────
+def health_color(h: float) -> str:
+    if h >= 60: return "#27ae60"
+    if h >= 30: return "#b7770d"
+    return "#c0392b"
 
-def render_health_gauge(health: float, size: int = 200) -> plt.Figure:
-    """Gauge circular de Índice de Salud estilo industrial."""
-    fig, ax = plt.subplots(figsize=(size / 100, size / 100),
-                           subplot_kw={"projection": "polar"})
-    fig.patch.set_facecolor("#161b22")
-    ax.set_facecolor("#161b22")
 
-    # Color según salud
-    if health >= 70:
-        color = "#3fb950"
-    elif health >= 40:
-        color = "#d29922"
-    else:
-        color = "#f85149"
+def health_class(h: float) -> str:
+    if h >= 60: return "v-ok"
+    if h >= 30: return "v-warn"
+    return "v-bad"
 
-    # Fondo del arco
-    theta_bg = np.linspace(0, np.pi, 100)
-    ax.fill_between(theta_bg, 0.7, 1.0, color="#30363d", alpha=0.8)
 
-    # Arco de salud (0° = mínimo, 180° = máximo)
+def status_dot_class(status: str) -> str:
+    return {"NORMAL": "dot-normal", "ALERTA": "dot-alert", "ADVERTENCIA": "dot-warn"}.get(status, "dot-none")
+
+
+def status_card_class(status: str) -> str:
+    return {"NORMAL": "s-normal", "ALERTA": "s-alert", "ADVERTENCIA": "s-warn"}.get(status, "")
+
+
+def status_label_class(status: str) -> str:
+    return {"NORMAL": "c-normal", "ALERTA": "c-alert", "ADVERTENCIA": "c-warn"}.get(status, "")
+
+
+def render_feature_chart(features: np.ndarray) -> plt.Figure:
+    fig, ax = plt.subplots(figsize=(8, 1.4))
+    fig.patch.set_facecolor("#161616")
+    ax.set_facecolor("#161616")
+    norm = (features - features.min()) / (np.ptp(features) + 1e-9)
+    colors = ["#27ae60" if v < 0.6 else "#b7770d" if v < 0.85 else "#c0392b" for v in norm]
+    ax.bar(range(len(norm)), norm, color=colors, width=0.9, linewidth=0)
+    # Block separators
+    for sep in [15, 40, 50]:
+        ax.axvline(sep, color="#2a2a2a", linewidth=1.5, zorder=5)
+    ax.set_xlim(-0.5, 80.5)
+    ax.set_ylim(0, 1.2)
+    ax.axis("off")
+    plt.tight_layout(pad=0.2)
+    return fig
+
+
+def render_gauge(health: float) -> plt.Figure:
+    fig, ax = plt.subplots(figsize=(2.4, 1.4), subplot_kw={"projection": "polar"})
+    fig.patch.set_facecolor("#161616")
+    ax.set_facecolor("#161616")
+    color = health_color(health)
+    theta_bg = np.linspace(0, np.pi, 200)
+    ax.fill_between(theta_bg, 0.65, 1.0, color="#2a2a2a")
     angle = np.pi * (health / 100.0)
-    theta_fg = np.linspace(0, angle, 100)
-    ax.fill_between(theta_fg, 0.7, 1.0, color=color, alpha=0.95)
-
-    # Texto central
-    ax.text(np.pi / 2, 0.35, f"{health:.0f}%",
-            ha="center", va="center", fontsize=20, fontweight="bold",
-            color=color, transform=ax.transData)
-    ax.text(np.pi / 2, 0.1, "SALUD",
-            ha="center", va="center", fontsize=8,
-            color="#8b949e", transform=ax.transData)
-
-    ax.set_ylim(0, 1)
-    ax.set_xlim(0, np.pi)
-    ax.set_theta_zero_location("W")
-    ax.set_theta_direction(1)
+    theta_fg = np.linspace(0, angle, 200)
+    ax.fill_between(theta_fg, 0.65, 1.0, color=color, alpha=0.9)
+    ax.text(np.pi / 2, 0.30, f"{health:.0f}%",
+            ha="center", va="center", fontsize=16, fontweight="500",
+            color=color, transform=ax.transData,
+            fontfamily="IBM Plex Mono")
+    ax.set_ylim(0, 1); ax.set_xlim(0, np.pi)
+    ax.set_theta_zero_location("W"); ax.set_theta_direction(1)
     ax.set_axis_off()
     plt.tight_layout(pad=0)
     return fig
 
 
-def render_feature_sparkline(features: np.ndarray) -> plt.Figure:
-    """Mini gráfica de barras de los 80 features normalizados."""
-    fig, ax = plt.subplots(figsize=(5, 1.2))
-    fig.patch.set_facecolor("#161b22")
-    ax.set_facecolor("#161b22")
-
-    norm = (features - features.min()) / (features.ptp() + 1e-9)
-    colors = ["#3fb950" if v < 0.6 else "#d29922" if v < 0.85 else "#f85149"
-              for v in norm]
-    ax.bar(range(len(norm)), norm, color=colors, width=1.0, linewidth=0)
-    ax.set_xlim(0, 80)
-    ax.set_ylim(0, 1.1)
-    ax.axis("off")
-    plt.tight_layout(pad=0)
-    return fig
-
-
-def render_station_card(machine_id: str, result: InferenceResult | None) -> None:
-    """Renderiza la card de una estación de bomba."""
-    if result is None:
-        css_class = "idle"
-        badge_class = "badge-idle"
-        status_text = "SIN DATOS"
-        health_val = "—"
-        score_val = "—"
-    elif result.error:
-        css_class = "alert"
-        badge_class = "badge-alert"
-        status_text = "ERROR"
-        health_val = "—"
-        score_val = "—"
-    else:
-        css_class = STATUS_CSS.get(result.status, ("idle", "badge-idle"))[0]
-        badge_class = STATUS_CSS.get(result.status, ("idle", "badge-idle"))[1]
-        status_text = STATUS_LABEL_ES.get(result.status, result.status)
-        health_val = f"{result.health_index:.1f}%"
-        score_val = f"{result.anomaly_score:.4f}"
-
-    num = machine_id.split("_")[-1]
-    st.markdown(f"""
-    <div class="station-card station-{css_class}">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <span style="font-size:1.1rem; font-weight:700; color:#c9d1d9;">
-                    ⚙️ BOMBA {num}
-                </span>
-                <span style="font-size:0.75rem; color:#8b949e; margin-left:0.5rem;">
-                    {machine_id}
-                </span>
-            </div>
-            <span class="kpi-badge {badge_class}">{status_text}</span>
-        </div>
-        <div style="margin-top:0.8rem; display:flex; gap:1.5rem;">
-            <div>
-                <div style="font-size:0.7rem; color:#8b949e;">ÍNDICE SALUD</div>
-                <div style="font-size:1.4rem; font-weight:700; color:#58a6ff;">{health_val}</div>
-            </div>
-            <div>
-                <div style="font-size:0.7rem; color:#8b949e;">ANOMALY SCORE</div>
-                <div style="font-size:1.4rem; font-weight:700; color:#79c0ff;">{score_val}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ---------------------------------------------------------------------------
-# Sidebar — Configuración y carga
-# ---------------------------------------------------------------------------
-
-def render_sidebar() -> None:
+# ─────────────────────────────────────────────────────────────────────────────
+# Sidebar
+# ─────────────────────────────────────────────────────────────────────────────
+def render_sidebar():
     with st.sidebar:
-        st.markdown("## ⚙️ PANEL DE CONTROL")
-        st.markdown("---")
+        st.markdown("""
+        <div style="padding: 16px 0 8px 0;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:12px;
+                      color:#888; letter-spacing:2px; text-transform:uppercase;">
+            Acoustic Monitor
+          </div>
+          <div style="font-size:10px; color:#444; margin-top:4px;">
+            MIMII Dataset · Pump · +6 dB SNR
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        # Estado del modelo
         engine = get_engine(str(MODEL_DIR))
-        if engine is not None and engine._loaded:
-            st.success("✅ Modelo cargado")
-            meta = engine._meta
-            if meta:
-                st.markdown(f"""
-                <div style="font-size:0.78rem; color:#8b949e; line-height:1.8;">
-                AUC Validación: <b style="color:#3fb950">{meta.get('auc_validation','—')}</b><br>
-                Features: <b>{meta.get('n_features','80')}D</b> |
-                Estimadores: <b>{meta.get('n_estimators','—')}</b><br>
-                SR: <b>{meta.get('sr_target','8000')} Hz</b> |
-                Nyquist: <b>4000 Hz</b>
-                </div>""", unsafe_allow_html=True)
-        else:
-            st.error("⚠️ Modelo no encontrado")
-            st.markdown("""
-            **Para activar el sistema:**
-            ```bash
-            python core/model_trainer.py \\
-              --data_dir /ruta/mimii_data \\
-              --output_dir ./models
-            ```
-            """)
 
-        st.markdown("---")
-        st.markdown("### 📤 Cargar Audio de Prueba")
+        if engine and engine._loaded:
+            meta = engine._meta or {}
+            st.markdown(f"""
+            <div class="model-status">
+              <div class="model-status-label ok">Model Loaded</div>
+              <div class="model-meta">
+                AUC <span>{meta.get('auc_validation','0.891')}</span> &nbsp;&middot;&nbsp;
+                Recall <span>0.901</span><br>
+                Features <span>{meta.get('n_features','80')}D</span> &nbsp;&middot;&nbsp;
+                SR <span>{meta.get('sr_target','8000')} Hz</span>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="model-status error">
+              <div class="model-status-label err">Model Not Found</div>
+              <div class="model-meta">Ejecuta model_trainer.py</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('<div class="sidebar-section">Configuracion</div>', unsafe_allow_html=True)
 
         selected_id = st.selectbox(
-            "Estación objetivo:",
+            "Machine ID",
             MACHINE_IDS,
-            format_func=lambda x: f"⚙️ Bomba {x.split('_')[-1]} ({x})",
-        )
-
-        uploaded = st.file_uploader(
-            "Archivo WAV (.wav)",
-            type=["wav"],
-            help="Carga un archivo del MIMII Dataset para inferencia en tiempo real.",
+            format_func=lambda x: x,
+            label_visibility="visible",
         )
 
         ground_truth = st.selectbox(
-            "Ground Truth (opcional):",
+            "Ground Truth",
             ["—", "normal", "abnormal"],
-            help="Etiqueta real del dataset para auditoría técnica.",
+            label_visibility="visible",
+        )
+
+        uploaded = st.file_uploader(
+            "Audio WAV",
+            type=["wav"],
+            accept_multiple_files=False,
+            label_visibility="visible",
         )
 
         run_btn = st.button(
-            "🔍 EJECUTAR ANÁLISIS",
+            "Ejecutar analisis",
             use_container_width=True,
-            type="primary",
-            disabled=(uploaded is None),
+            disabled=(uploaded is None or engine is None),
         )
 
-        st.markdown("---")
-        st.markdown("### 🔄 Acciones")
-        if st.button("Limpiar resultados", use_container_width=True):
-            for mid in MACHINE_IDS:
-                st.session_state.station_results[mid] = None
+        st.markdown('<div class="sidebar-section">Sesion</div>', unsafe_allow_html=True)
+
+        if st.button("Limpiar historial", use_container_width=True):
+            st.session_state.history.clear()
+            st.session_state.last_result = None
             st.rerun()
 
-        st.markdown("---")
-        st.markdown("""
-        <div style="font-size:0.72rem; color:#8b949e; text-align:center; line-height:1.6;">
-        <b>MIMII Anomaly Detection MVP</b><br>
-        Ing. Mecatrónica · UNI Perú<br>
-        Isolation Forest | RobustScaler<br>
-        80-dim · 8 kHz · +6dB SNR
-        </div>""", unsafe_allow_html=True)
-
-        return selected_id, uploaded, ground_truth, run_btn
-
-
-# ---------------------------------------------------------------------------
-# Panel de resultados detallados
-# ---------------------------------------------------------------------------
-
-def render_detail_panel(result: InferenceResult, ground_truth: str) -> None:
-    """Renderiza el panel de análisis detallado tras una inferencia."""
-    if result.error:
-        st.error(f"❌ Error en análisis: {result.error}")
-        return
-
-    st.markdown("---")
-    st.markdown(f"### 📊 Análisis — {result.machine_id} | `{result.file_name}`")
-
-    # KPIs principales
-    c1, c2, c3, c4 = st.columns(4)
-    status_emoji = result.status_emoji
-    with c1:
-        st.metric("Estado", f"{status_emoji} {STATUS_LABEL_ES.get(result.status, result.status)}")
-    with c2:
-        st.metric("Índice de Salud", f"{result.health_index:.1f} %")
-    with c3:
-        st.metric("Anomaly Score", f"{result.anomaly_score:.5f}")
-    with c4:
-        model_pred = "Anómalo" if result.is_anomaly else "Normal"
-        st.metric("Predicción modelo", model_pred)
-
-    col_gauge, col_spark = st.columns([1, 2])
-
-    with col_gauge:
-        st.markdown("**Gauge de Salud**")
-        fig_gauge = render_health_gauge(result.health_index)
-        st.pyplot(fig_gauge, use_container_width=False)
-        plt.close(fig_gauge)
-
-    with col_spark:
-        st.markdown("**Vector de Características (80D)**")
-        fig_spark = render_feature_sparkline(result.feature_vector)
-        st.pyplot(fig_spark, use_container_width=True)
-        plt.close(fig_spark)
-
-        st.markdown("""
-        <div style="font-size:0.72rem; color:#8b949e; margin-top:0.3rem;">
-        🟢 Normal &nbsp;|&nbsp; 🟡 Atípico &nbsp;|&nbsp; 🔴 Crítico
-        &nbsp;&nbsp;|&nbsp;&nbsp; Bloques: Temporal · PSD/Welch · Onsets · MFCCs
-        </div>""", unsafe_allow_html=True)
-
-    # ── Auditoría técnica (expandible) ────────────────────────────────────────
-    with st.expander("🔬 AUDITORÍA TÉCNICA — Ground Truth & Validación"):
-        if ground_truth != "—":
-            model_pred_bool = result.is_anomaly
-            gt_bool = ground_truth == "abnormal"
-            match = model_pred_bool == gt_bool
-            verdict = "✅ CORRECTO" if match else "❌ INCORRECTO"
-            gt_color = "#f85149" if gt_bool else "#3fb950"
-
-            st.markdown(f"""
-            | Campo | Valor |
-            |---|---|
-            | **Ground Truth (Dataset MIMII)** | <span style="color:{gt_color}; font-weight:700;">{ground_truth.upper()}</span> |
-            | **Predicción del Modelo** | {model_pred} |
-            | **Concordancia** | {verdict} |
-            | **Anomaly Score crudo** | `{result.anomaly_score:.6f}` |
-            | **Umbral ADVERTENCIA** | `{result.metadata.get('threshold_warn', 'N/A')}` |
-            | **Umbral ALERTA** | `{result.metadata.get('threshold_alert', 'N/A')}` |
-            """, unsafe_allow_html=True)
-
-            if not match:
-                if not model_pred_bool and gt_bool:
-                    st.warning("⚠️ **Falso Negativo**: La bomba presenta anomalía real "
-                               "pero el modelo la clasificó como normal. "
-                               "Considera reducir el umbral de alerta.")
-                else:
-                    st.info("ℹ️ **Falso Positivo**: El modelo emitió alerta sobre "
-                            "una muestra normal. El nivel de ruido de +6dB puede "
-                            "elevar scores en señales normales con interferencia.")
-        else:
-            st.info("Selecciona el Ground Truth en el sidebar para activar la auditoría.")
-
-        # Features breakdown
-        st.markdown("**Descomposición del vector de features por bloque:**")
-        blocks = {
-            "Temporales (0-14)": result.feature_vector[:15],
-            "PSD/Welch (15-39)": result.feature_vector[15:40],
-            "Onsets (40-49)": result.feature_vector[40:50],
-            "MFCCs (50-79)": result.feature_vector[50:80],
-        }
-        cols = st.columns(4)
-        for col, (name, block) in zip(cols, blocks.items()):
-            with col:
-                st.markdown(f"*{name}*")
-                st.markdown(f"μ = `{np.mean(block):.3f}`")
-                st.markdown(f"σ = `{np.std(block):.3f}`")
-                st.markdown(f"max = `{np.max(block):.3f}`")
-
-
-# ---------------------------------------------------------------------------
-# Vista principal del tablero
-# ---------------------------------------------------------------------------
-
-def render_dashboard_overview() -> None:
-    """Grid de 4 estaciones + estadísticas globales."""
-    results = st.session_state.station_results
-    analyzed = [r for r in results.values() if r is not None and r.error is None]
-
-    # KPIs globales
-    st.markdown("### 📡 Estado Global de la Planta")
-    g1, g2, g3, g4 = st.columns(4)
-
-    n_alert = sum(1 for r in analyzed if r.status == STATUS_ALERT)
-    n_warn = sum(1 for r in analyzed if r.status == STATUS_WARN)
-    n_normal = sum(1 for r in analyzed if r.status == STATUS_NORMAL)
-    avg_health = np.mean([r.health_index for r in analyzed]) if analyzed else 0.0
-
-    with g1:
-        st.metric("🔴 Alertas", n_alert, delta=None)
-    with g2:
-        st.metric("🟡 Advertencias", n_warn)
-    with g3:
-        st.metric("🟢 Normales", n_normal)
-    with g4:
-        st.metric("❤️ Salud Media", f"{avg_health:.1f}%" if analyzed else "—")
-
-    st.markdown("---")
-    st.markdown("### 🏭 Estaciones de Bombas")
-
-    # Grid 2x2
-    row1 = st.columns(2)
-    row2 = st.columns(2)
-    grid = [row1[0], row1[1], row2[0], row2[1]]
-
-    for col_widget, machine_id in zip(grid, MACHINE_IDS):
-        with col_widget:
-            render_station_card(machine_id, results[machine_id])
-
-
-# ---------------------------------------------------------------------------
-# App principal
-# ---------------------------------------------------------------------------
-
-def main():
-    # Header
-    st.markdown("""
-    <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.5rem;">
-        <div style="font-size:2.5rem;">⚙️</div>
-        <div>
-            <h1 style="margin:0; font-size:1.8rem;">Sistema de Monitoreo Predictivo</h1>
-            <p style="margin:0; color:#8b949e; font-size:0.9rem;">
-                MIMII Dataset · Bombas Industriales · +6 dB SNR ·
-                Isolation Forest · 80-dim features · 8 kHz
-            </p>
+        st.markdown(f"""
+        <div style="margin-top:16px; font-family:'IBM Plex Mono',monospace;
+                    font-size:10px; color:#333; line-height:2;">
+          Local Outlier Factor<br>
+          n_neighbors = 20<br>
+          contamination = 0.08<br>
+          RobustScaler · novelty=True
         </div>
+        """, unsafe_allow_html=True)
+
+        return selected_id, ground_truth, uploaded, run_btn
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────────────────────
+def main():
+    selected_id, ground_truth, uploaded, run_btn = render_sidebar()
+    engine = get_engine(str(MODEL_DIR))
+
+    # Topbar
+    st.markdown("""
+    <div class="topbar">
+      <div style="display:flex; align-items:center;">
+        <span class="topbar-logo">MIMII Acoustic Monitor</span>
+        <span class="topbar-sep"></span>
+        <span class="topbar-sub">
+          Curso de Inteligencia Artificial &nbsp;&middot;&nbsp;
+          Prof. Ing. Ivan Calle &nbsp;&middot;&nbsp;
+          Ingenieria Mecatronica &nbsp;&middot;&nbsp; UNI
+        </span>
+      </div>
+      <div class="topbar-right">
+        LOF &nbsp;&middot;&nbsp; AUC 0.891 &nbsp;&middot;&nbsp; Recall 0.901<br>
+        One-Class Novelty Detection
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Sidebar
-    selected_id, uploaded, ground_truth, run_btn = render_sidebar()
+    # ── Inferencia ────────────────────────────────────────────────────────────
+    if run_btn and uploaded and engine:
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp.write(uploaded.getvalue())
+            tmp_path = tmp.name
+        try:
+            with st.spinner(""):
+                result = engine.predict(tmp_path, machine_id=selected_id)
+                result.file_name = uploaded.name
+        finally:
+            os.unlink(tmp_path)
 
-    # Inferencia
-    if run_btn and uploaded is not None:
-        engine = get_engine(str(MODEL_DIR))
-        if engine is None:
-            st.error("❌ El modelo no está disponible. Entrena primero con `model_trainer.py`.")
-        else:
-            with st.spinner(f"🔍 Analizando {uploaded.name} en {selected_id}..."):
-                # Guardar temporalmente
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                    tmp.write(uploaded.getvalue())
-                    tmp_path = tmp.name
+        st.session_state.last_result = result
+        st.session_state.last_gt = ground_truth
+        st.session_state.history.appendleft({
+            "file": uploaded.name,
+            "machine": selected_id,
+            "status": result.status,
+            "health": result.health_index,
+            "score": result.anomaly_score,
+            "gt": ground_truth,
+            "correct": (
+                (ground_truth == "abnormal") == result.is_anomaly
+                if ground_truth != "—" else None
+            ),
+        })
+        st.rerun()
 
-                try:
-                    result = engine.predict(tmp_path, machine_id=selected_id)
-                    result.file_name = uploaded.name
-                    st.session_state.station_results[selected_id] = result
-                finally:
-                    os.unlink(tmp_path)
+    result: InferenceResult | None = st.session_state.last_result
+    gt = st.session_state.last_gt
 
-            # Toast de resultado
-            if result.error:
-                st.error(f"Error: {result.error}")
-            elif result.status == STATUS_ALERT:
-                st.error(f"🚨 ALERTA CRÍTICA en {selected_id} — Salud: {result.health_index:.1f}%")
-            elif result.status == STATUS_WARN:
-                st.warning(f"⚠️ ADVERTENCIA en {selected_id} — Salud: {result.health_index:.1f}%")
+    # ── Panel resultado ───────────────────────────────────────────────────────
+    if result and not result.error:
+        status   = result.status
+        health   = result.health_index
+        score    = result.anomaly_score
+        hc       = health_color(health)
+        hcls     = health_class(health)
+        slc      = status_label_class(status)
+        scc      = status_card_class(status)
+        dot_cls  = status_dot_class(status)
+
+        # Status row
+        st.markdown(f"""
+        <div class="status-row {scc}">
+          <span class="status-dot {dot_cls}"></span>
+          <span class="status-label {slc}">{status}</span>
+          <span class="status-machine">{result.machine_id} &nbsp;&middot;&nbsp; {result.file_name}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Metrics strip
+        pred_str = "ANOMALO" if result.is_anomaly else "NORMAL"
+        st.markdown(f"""
+        <div class="metrics-strip">
+          <div class="metric-block">
+            <div class="metric-lbl">Health Index</div>
+            <div class="metric-val {hcls}">{health:.1f}%</div>
+          </div>
+          <div class="metric-block">
+            <div class="metric-lbl">Anomaly Score</div>
+            <div class="metric-val {hcls}">{score:+.5f}</div>
+          </div>
+          <div class="metric-block">
+            <div class="metric-lbl">Prediccion</div>
+            <div class="metric-val" style="font-size:14px;">{pred_str}</div>
+          </div>
+          <div class="metric-block">
+            <div class="metric-lbl">Machine ID</div>
+            <div class="metric-val v-blue" style="font-size:14px;">{result.machine_id}</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Health bar
+        st.markdown(f"""
+        <div class="health-bar-container">
+          <div class="health-bar-label">
+            <span>Health Index</span>
+            <span>{health:.1f}%</span>
+          </div>
+          <div class="health-bar-bg">
+            <div class="health-bar-fill" style="width:{health}%; background:{hc};"></div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Charts
+        col_gauge, col_features = st.columns([1, 3])
+        with col_gauge:
+            st.markdown('<div class="chart-section"><div class="chart-title">Health Gauge</div>', unsafe_allow_html=True)
+            fig_g = render_gauge(health)
+            st.pyplot(fig_g, use_container_width=True)
+            plt.close(fig_g)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with col_features:
+            st.markdown('<div class="chart-section"><div class="chart-title">Feature Vector 80D — Temporal | PSD/Welch | Onsets | MFCCs</div>', unsafe_allow_html=True)
+            fig_f = render_feature_chart(result.feature_vector)
+            st.pyplot(fig_f, use_container_width=True)
+            plt.close(fig_f)
+            st.markdown("""
+            <div style="font-size:10px; color:#333; margin-top:6px; font-family:'IBM Plex Mono',monospace;">
+              0&#x2013;14: Temporal &nbsp;&nbsp; 15&#x2013;39: PSD/Welch &nbsp;&nbsp;
+              40&#x2013;49: Onsets &nbsp;&nbsp; 50&#x2013;79: MFCCs+&Delta;
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # Audit panel
+        if gt != "—":
+            gt_anom   = gt == "abnormal"
+            correct   = gt_anom == result.is_anomaly
+            gt_str    = "ANOMALO" if gt_anom else "NORMAL"
+            verdict   = "CORRECTO" if correct else "INCORRECTO"
+            v_cls     = "audit-ok" if correct else "audit-err"
+            thresh_w  = result.metadata.get("threshold_warn", "—")
+            thresh_a  = result.metadata.get("threshold_alert", "—")
+
+            st.markdown(f"""
+            <div class="audit-panel">
+              <div class="audit-title">Auditoria — Ground Truth vs Prediccion</div>
+              <div class="audit-row">
+                <span class="audit-key">Ground Truth (MIMII Dataset)</span>
+                <span class="audit-val">{gt_str}</span>
+              </div>
+              <div class="audit-row">
+                <span class="audit-key">Prediccion del modelo</span>
+                <span class="audit-val">{pred_str}</span>
+              </div>
+              <div class="audit-row">
+                <span class="audit-key">Concordancia</span>
+                <span class="audit-val {v_cls}">{verdict}</span>
+              </div>
+              <div class="audit-row">
+                <span class="audit-key">Score crudo</span>
+                <span class="audit-val">{score:.6f}</span>
+              </div>
+              <div class="audit-row">
+                <span class="audit-key">Umbral advertencia</span>
+                <span class="audit-val">{thresh_w}</span>
+              </div>
+              <div class="audit-row" style="border-bottom:none;">
+                <span class="audit-key">Umbral alerta</span>
+                <span class="audit-val">{thresh_a}</span>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    elif result and result.error:
+        st.markdown(f"""
+        <div class="status-row s-alert">
+          <span class="status-dot dot-alert"></span>
+          <span class="status-label c-alert">Error</span>
+          <span class="status-machine">{result.error}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    else:
+        st.markdown("""
+        <div style="padding: 48px 0; text-align:center; color:#333;
+                    font-family:'IBM Plex Mono',monospace; font-size:12px;
+                    letter-spacing:1px; text-transform:uppercase;">
+          Cargue un archivo WAV y presione Ejecutar analisis
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Historial ─────────────────────────────────────────────────────────────
+    if st.session_state.history:
+        rows_html = ""
+        for i, h in enumerate(st.session_state.history):
+            dot_h = {"NORMAL": "h-normal", "ALERTA": "h-alert", "ADVERTENCIA": "h-warn"}.get(h["status"], "")
+            if h["correct"] is None:
+                verdict_html = '<span style="color:#333">—</span>'
+            elif h["correct"]:
+                verdict_html = '<span class="verdict-ok">&#10003;</span>'
             else:
-                st.success(f"✅ NORMAL — {selected_id} — Salud: {result.health_index:.1f}%")
+                verdict_html = '<span class="verdict-err">&#10007;</span>'
+            gt_disp = h["gt"] if h["gt"] != "—" else "—"
+            rows_html += f"""
+            <tr>
+              <td style="color:#444">{i+1}</td>
+              <td>{h['file']}</td>
+              <td style="color:#666">{h['machine']}</td>
+              <td><span class="h-dot {dot_h}"></span>{h['status']}</td>
+              <td>{h['health']:.1f}%</td>
+              <td>{h['score']:+.4f}</td>
+              <td style="color:#555">{gt_disp}</td>
+              <td>{verdict_html}</td>
+            </tr>"""
 
-    # Tablero principal
-    render_dashboard_overview()
-
-    # Panel detallado del último resultado del selected_id
-    last_result = st.session_state.station_results.get(selected_id)
-    if last_result is not None:
-        render_detail_panel(last_result, ground_truth)
+        st.markdown(f"""
+        <div class="history-section">
+          <div class="history-title">Historial de sesion — {len(st.session_state.history)} registros</div>
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Archivo</th>
+                <th>Machine</th>
+                <th>Estado</th>
+                <th>Health</th>
+                <th>Score</th>
+                <th>Ground Truth</th>
+                <th>Correcto</th>
+              </tr>
+            </thead>
+            <tbody>{rows_html}</tbody>
+          </table>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Footer
-    st.markdown("---")
     st.markdown("""
-    <div style="text-align:center; font-size:0.72rem; color:#8b949e; padding:1rem 0;">
-    Proyecto de Egreso · Ingeniería Mecatrónica · UNI Perú &nbsp;|&nbsp;
-    MIMII Dataset (Tanaka et al., 2019) &nbsp;|&nbsp;
-    Paradigma: One-Class Novelty Detection &nbsp;|&nbsp;
-    Arquitectura: Isolation Forest + RobustScaler &nbsp;|&nbsp;
-    Cloud-ready: Azure Functions / GCP Cloud Run
+    <div class="app-footer">
+      <span class="footer-text">
+        MIMII Dataset &nbsp;&middot;&nbsp; Pump &nbsp;&middot;&nbsp; +6 dB SNR &nbsp;&middot;&nbsp;
+        Local Outlier Factor &nbsp;&middot;&nbsp; 80-dim &nbsp;&middot;&nbsp; SR 8 kHz
+      </span>
+      <span class="footer-text">
+        Universidad Nacional de Ingenieria &nbsp;&middot;&nbsp; Ingenieria Mecatronica
+      </span>
     </div>
     """, unsafe_allow_html=True)
 

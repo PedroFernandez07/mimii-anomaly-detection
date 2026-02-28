@@ -1,28 +1,28 @@
 <div align="center">
 
-# ⚙️ MIMII Anomaly Detection MVP
+# MIMII Anomaly Detection
 
-### Sistema de Mantenimiento Predictivo Acústico para Bombas Industriales
+### Deteccion de Anomalias Acusticas en Bombas Industriales
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org)
-[![Azure](https://img.shields.io/badge/Azure-Functions-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-F7931E?style=flat-square&logo=scikit-learn&logoColor=white)](https://scikit-learn.org)
+[![Azure](https://img.shields.io/badge/Azure-Container_Apps-0078D4?style=flat-square&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com)
 
-**Proyecto de Egreso · Ingeniería Mecatrónica (9no ciclo) · Universidad Nacional de Ingeniería (UNI) · Lima, Perú**
+**Curso de Inteligencia Artificial · Prof. Ing. Ivan Calle**
+**Ingenieria Mecatronica (9no ciclo) · Universidad Nacional de Ingenieria (UNI) · Lima, Peru**
 
-[Demo en vivo](#demo) · [Instalación](#instalacion) · [Arquitectura](#arquitectura) · [Resultados](#resultados)
+[Demo](#demo) · [Instalacion](#instalacion) · [Arquitectura](#arquitectura) · [Resultados](#resultados)
 
 </div>
 
 ---
 
-## Descripción
+## Descripcion
 
-MVP de **Inteligencia Artificial Industrial** para detección de anomalías acústicas en bombas centrífugas bajo condiciones reales de ruido industrial (+6 dB SNR). El sistema implementa un pipeline completo de Data Engineering y MLOps con arquitectura modular, benchmarking comparativo de algoritmos y despliegue cloud-ready.
+Sistema de mantenimiento predictivo basado en deteccion de anomalias acusticas para bombas centrifugas industriales. Implementado sobre el benchmark **MIMII Dataset** (Malfunctioning Industrial Machine Investigation and Inspection) bajo condiciones reales de ruido industrial (+6 dB SNR).
 
-El proyecto parte del benchmark **MIMII Dataset** (Malfunctioning Industrial Machine Investigation and Inspection) y aborda el problema real de mantenimiento predictivo: detectar fallas antes de que ocurran, reduciendo paradas no programadas y costos operacionales.
+El pipeline abarca desde la ingesta de audio crudo hasta el despliegue en la nube, incluyendo extraccion manual de features DSP, seleccion empirica de algoritmos mediante benchmarking, optimizacion de umbral para contexto industrial y dashboard de monitoreo en tiempo real.
 
 ---
 
@@ -30,35 +30,25 @@ El proyecto parte del benchmark **MIMII Dataset** (Malfunctioning Industrial Mac
 
 ![Arquitectura del Sistema](docs/architecture.svg)
 
-El pipeline está completamente desacoplado en tres capas:
-- **Ingesta y Feature Engineering** — procesamiento de señales DSP en 80 dimensiones
-- **Modelo ML** — Local Outlier Factor con umbral optimizado para industria
-- **Interfaz y Cloud** — Streamlit Dashboard + microservicio REST API
+El pipeline esta desacoplado en tres capas:
+
+- **Ingesta y Feature Engineering** — procesamiento de senales DSP en 80 dimensiones
+- **Modelo ML** — Local Outlier Factor con umbral calibrado para industria
+- **Interfaz y Cloud** — Streamlit Dashboard + microservicio REST
 
 ---
 
-## Características Principales
+## Stack Tecnologico
 
-- **Pipeline 80D** — extracción manual de descriptores acústicos especializados para maquinaria rotativa
-- **Benchmarking real** — comparación de 5 algoritmos sobre datos reales antes de elegir el modelo
-- **Umbral industrial** — calibrado para Recall ≥ 0.90, priorizando la detección sobre las falsas alarmas
-- **Dashboard SCADA** — tablero de control industrial con 4 estaciones de bomba en tiempo real
-- **Auditoría técnica** — validación contra Ground Truth del dataset para transparencia del modelo
-- **Cloud-ready** — motor de inferencia desacoplado compatible con Azure Functions y GCP Cloud Run
-
----
-
-## Stack Tecnológico
-
-| Capa | Tecnología | Propósito |
+| Capa | Tecnologia | Proposito |
 |------|-----------|-----------|
-| **Lenguaje** | Python 3.11 | Pipeline completo |
-| **Feature Engineering** | librosa · scipy · numpy | Extracción DSP |
-| **ML** | scikit-learn | LOF · RobustScaler |
-| **Data** | pandas | Inventario y manipulación |
-| **UI** | Streamlit | Dashboard SCADA |
-| **Cloud** | Azure Functions · GCP | Microservicio REST |
-| **Versionamiento** | GitHub | CI/CD ready |
+| Lenguaje | Python 3.11 | Pipeline completo |
+| Feature Engineering | librosa · scipy · numpy | Extraccion DSP |
+| ML | scikit-learn | LOF · RobustScaler |
+| Data | pandas | Inventario y manipulacion |
+| UI | Streamlit | Dashboard de monitoreo |
+| Cloud | Azure Container Apps · Blob Storage | Despliegue y almacenamiento |
+| Versionamiento | GitHub | Control de versiones |
 
 ---
 
@@ -66,72 +56,81 @@ El pipeline está completamente desacoplado en tres capas:
 
 ```
 mimii-anomaly-detection/
-├── app.py                          # Dashboard Streamlit
-├── recalibrate.py                  # Recalibración de umbrales
+├── app.py                          # Monitor acustico individual
+├── central_monitoreo.py            # Central de monitoreo 2 plantas / 20 bombas
+├── recalibrate.py                  # Recalibracion de umbrales
+├── Dockerfile                      # Contenedor para Azure
 ├── requirements.txt
 │
 ├── core/
 │   ├── feature_extractor.py        # Pipeline 80D (DSP)
 │   ├── model_trainer.py            # Entrenamiento LOF
-│   └── inference_engine.py         # Motor de inferencia cloud-ready
+│   ├── inference_engine.py         # Motor de inferencia cloud-ready
+│   └── blob_loader.py              # Descarga de modelos desde Azure Blob Storage
 │
 ├── scripts/
-│   ├── benchmark.py                # Comparación 5 algoritmos
+│   ├── benchmark.py                # Comparacion 5 algoritmos
 │   └── cloud_handler.py            # Handler Azure Functions / GCP
 │
-├── models/                         # Artefactos generados localmente*
-│   └── training_meta.json
+├── models/
+│   └── training_meta.json          # Metadatos del modelo entrenado
 │
 └── docs/
     └── architecture.svg            # Diagrama de arquitectura
 ```
 
-> **Nota:** Los artefactos del modelo (`lof_model.pkl`, `robust_scaler.pkl`) no están incluidos en el repositorio. Genéralos ejecutando los pasos 4 y 5 de la instalación con el dataset descargado.
+> Los artefactos `lof_model.pkl` y `robust_scaler.pkl` no estan en el repositorio. En produccion se descargan automaticamente desde Azure Blob Storage. Para desarrollo local, generarlos con los pasos 4 y 5 de la instalacion.
 
 ---
 
 ## Pipeline de Features — Vector 80D
 
-El corazón del sistema es la extracción manual de descriptores acústicos especializados para bombas centrífugas, procesados a **8,000 Hz** (Nyquist = 4,000 Hz, rango mecánico relevante):
+Descriptores acusticos extraidos manualmente, especializados para maquinaria rotativa, procesados a 8,000 Hz (Nyquist = 4,000 Hz):
 
 | Bloque | Dims | Descriptores |
 |--------|------|-------------|
-| **Temporales** | 15D | RMS, Crest Factor, Kurtosis, Skewness, ZCR, Shape/Impulse/Margin Factor, IQR, Energy |
-| **PSD / Welch** | 25D | 10 bandas 0–4kHz, centroide espectral, ancho de banda, flatness, entropía, frecuencia pico |
-| **Onsets** | 10D | Tasa de impactos, IOI mean/std, entropía de envolvente, regularidad rítmica |
-| **MFCCs + Δ** | 30D | 13 coeficientes MFCC + 9 delta-1 + 8 delta-2 |
+| Temporales | 15D | RMS, Crest Factor, Kurtosis, Skewness, ZCR, Shape/Impulse/Margin Factor, IQR, Energy |
+| PSD / Welch | 25D | 10 bandas 0-4kHz, centroide espectral, ancho de banda, flatness, entropia, frecuencia pico |
+| Onsets | 10D | Tasa de impactos, IOI mean/std, entropia de envolvente, regularidad ritmica |
+| MFCCs + Delta | 30D | 13 coeficientes MFCC + 9 delta-1 + 8 delta-2 |
 
 ---
 
 ## Benchmark Comparativo
 
-Antes de seleccionar el modelo final se evaluaron 5 algoritmos sobre los datos reales:
+Se evaluaron 5 algoritmos sobre datos reales antes de seleccionar el modelo. Las metricas de esta tabla corresponden al umbral por defecto de scikit-learn sobre un subconjunto de 300 muestras — su proposito es comparar la capacidad discriminativa de cada algoritmo, no el rendimiento final del sistema.
 
 | Ranking | Algoritmo | AUC | F1 | Recall |
-|---------|-----------|-----|-----|--------|
-| 🥇 | **LOF k=20** | **0.906** | **0.756** | **0.620** |
-| 🥈 | LOF k=5 | 0.887 | 0.778 | 0.653 |
-| 🥉 | One-Class SVM | 0.748 | 0.573 | 0.407 |
-| 4️⃣ | Isolation Forest | 0.763 | 0.159 | 0.087 |
-| 5️⃣ | Elliptic Envelope | 0.653 | 0.000 | 0.000 |
+|---------|-----------|-----|----|--------|
+| 1 | **LOF k=20** | **0.906** | **0.756** | 0.620 |
+| 2 | LOF k=5 | 0.887 | 0.778 | 0.653 |
+| 3 | One-Class SVM | 0.748 | 0.573 | 0.407 |
+| 4 | Isolation Forest | 0.763 | 0.159 | 0.087 |
+| 5 | Elliptic Envelope | 0.653 | 0.000 | 0.000 |
+
+LOF k=20 fue seleccionado por su mayor AUC y su capacidad de modelar densidades locales, caracteristica ventajosa para señales acusticas de maquinaria donde las anomalias son cambios sutiles en el patron de vibracion.
 
 ---
 
 ## Resultados Finales
 
-| Métrica | Valor | Interpretación |
-|---------|-------|----------------|
-| **AUC-ROC** | 0.891 | Alta capacidad discriminativa |
-| **Recall** | 0.901 | 9 de cada 10 fallas detectadas |
-| **Precision** | 0.558 | Trade-off aceptado para industria |
-| **F1-Score** | 0.690 | Balance global |
-| **Escenario** | +6 dB SNR | El más difícil del dataset |
+Tras entrenar con el dataset completo y optimizar el umbral de decision para maximizar Recall con la restriccion Precision >= 0.55:
 
-> El umbral fue calibrado para **Recall ≥ 0.90** porque en mantenimiento predictivo industrial el costo de una falla no detectada supera al de una inspección innecesaria. Por cada falla real detectada se generan ~0.8 falsas alarmas — ratio operacionalmente aceptable.
+| Metrica | Valor | Interpretacion |
+|---------|-------|----------------|
+| AUC-ROC | 0.891 | Alta capacidad discriminativa |
+| Recall | 0.901 | 9 de cada 10 fallas detectadas |
+| Precision | 0.558 | Trade-off aceptado para contexto industrial |
+| F1-Score | 0.690 | Balance global |
+| Escenario | +6 dB SNR | Condicion de mayor ruido del dataset |
+
+**Nota sobre la diferencia entre benchmark y resultado final:** El Recall del benchmark (0.620 para LOF k=20) y el Recall del modelo final (0.901) corresponden a etapas distintas. El benchmark usa el umbral por defecto de scikit-learn para comparar algoritmos. El modelo final usa un umbral optimizado mediante busqueda sobre el rango de percentiles del conjunto de validacion, priorizando la deteccion de fallas sobre la precision. El algoritmo es el mismo; lo que cambia es la posicion del corte de decision.
+
+El umbral fue calibrado para Recall >= 0.90 porque en mantenimiento industrial el costo de una falla no detectada supera al de una inspeccion innecesaria. Por cada falla real detectada se generan aproximadamente 0.8 falsas alarmas — ratio operacionalmente aceptable.
 
 ---
 
-## Instalación
+## Instalacion
 
 ```bash
 # 1. Clonar repositorio
@@ -151,35 +150,47 @@ python -m core.model_trainer --data_dir "./pump" --output_dir "./models"
 # 5. Recalibrar umbrales
 python recalibrate.py --data_dir "./pump"
 
-# 6. Lanzar dashboard
+# 6. Lanzar monitor individual
 streamlit run app.py
+
+# 7. Lanzar central de monitoreo (2 plantas / 20 bombas)
+streamlit run central_monitoreo.py
 ```
 
 ---
 
 ## Demo
-El dashboard simula un panel de control SCADA industrial con:
 
-- **4 estaciones** de bomba monitoreadas (id_00, id_02, id_04, id_06)
-- **Carga de audios WAV** para inferencia instantánea
-- **Gauge de Índice de Salud** (0–100%) con escala cromática
-- **Expandible de Auditoría** con Ground Truth vs. predicción del modelo
-- **Live demo:** https://mimii-app.wonderfulfield-74501e25.eastus.azurecontainerapps.io/
+**Live demo (Azure Container Apps):**
+https://mimii-app.wonderfulfield-74501e25.eastus.azurecontainerapps.io/
+
+El sistema incluye dos interfaces:
+
+**Monitor individual (`app.py`)** — carga un archivo WAV, selecciona el machine ID y ejecuta el analisis. Muestra estado, indice de salud, score, vector de features 80D y auditoria contra Ground Truth. Mantiene historial de hasta 20 analisis en la sesion.
+
+**Central de monitoreo (`central_monitoreo.py`)** — simula dos plantas industriales con 20 bombas cada una. Selecciona archivos al azar del conjunto de validacion (datos no vistos durante el entrenamiento), ejecuta el analisis en lote y muestra el estado de cada bomba con accuracy en tiempo real contra Ground Truth.
+
 ---
 
-## Despliegue en la Nube
+## Despliegue en Azure
 
-El motor de inferencia está **desacoplado de la UI** para operar como microservicio:
+El motor de inferencia esta desacoplado de la UI y opera como microservicio:
 
 ```python
-# Azure Functions
 from core.inference_engine import predict
 
 result = predict("pump_sound.wav", machine_id="id_00")
 # {'status': 'NORMAL', 'health_index': 87.3, 'anomaly_score': -0.2341}
 ```
 
-Ver `scripts/cloud_handler.py` para el handler completo de Azure Functions y GCP.
+Infraestructura desplegada:
+
+| Servicio | Recurso | Proposito |
+|----------|---------|-----------|
+| Azure Container Registry | mimiiregistry | Almacena imagen Docker |
+| Azure Container Apps | mimii-app | Ejecuta la aplicacion Streamlit |
+| Azure Blob Storage | mimiimodels / models | Almacena artefactos del modelo |
+| Log Analytics | workspace-mimiirg | Monitoreo y logs |
 
 ---
 
@@ -187,10 +198,10 @@ Ver `scripts/cloud_handler.py` para el handler completo de Azure Functions y GCP
 
 **MIMII Dataset** — Malfunctioning Industrial Machine Investigation and Inspection
 
-- **Fuente:** Zenodo · [DOI: 10.5281/zenodo.3384388](https://zenodo.org/record/3384388)
-- **Subset:** Pump · +6 dB SNR · 7.7 GB
-- **Distribución:** 3,749 normales · 456 anómalas · ratio 9:1
-- **Formato:** WAV · 16 kHz · 16-bit PCM · ~10 segundos por muestra
+- Fuente: Zenodo · [DOI: 10.5281/zenodo.3384388](https://zenodo.org/record/3384388)
+- Subset: Pump · +6 dB SNR · 7.7 GB
+- Distribucion: 3,749 normales · 456 anomalas · ratio 9:1
+- Formato: WAV · 16 kHz · 16-bit PCM · ~10 segundos por muestra
 
 > Purohit, H. et al. (2019). *MIMII Dataset: Sound Dataset for Malfunctioning Industrial Machine Investigation and Inspection*. DCASE Workshop 2019.
 
@@ -198,12 +209,12 @@ Ver `scripts/cloud_handler.py` para el handler completo de Azure Functions y GCP
 
 ## Autor
 
-**Pedro Santiago**
-Estudiante de Ingeniería Mecatrónica (9no ciclo) · Universidad Nacional de Ingeniería (UNI) · Lima, Perú
-Especialización en curso: Data Engineering
+**Pedro Fernandez**
+Estudiante de Ingenieria Mecatronica (9no ciclo) · Universidad Nacional de Ingenieria (UNI) · Lima, Peru
+Curso: Inteligencia Artificial · Prof. Ing. Ivan Calle · Especializacion en curso: Data Engineering
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-0A66C2?style=flat&logo=linkedin)](https://www.linkedin.com/in/pedro-fernandez-avila)
-[![GitHub](https://img.shields.io/badge/GitHub-PedroFernandez07-181717?style=flat&logo=github)](https://github.com/PedroFernandez07)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-pedro--fernandez--avila-0A66C2?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/pedro-fernandez-avila)
+[![GitHub](https://img.shields.io/badge/GitHub-PedroFernandez07-181717?style=flat-square&logo=github)](https://github.com/PedroFernandez07)
 
 ---
 
